@@ -20,6 +20,18 @@ Projet Django pour suivre ta progression Genshin Impact : personnages obtenus,
    python manage.py runserver
    ```
 
+### Importer les données depuis l'API publique genshin.blue
+L'API communautaire [genshin.blue](https://genshin.jmp.blue) expose personnages et matériaux. Un importeur dédié est inclus :
+
+```bash
+python manage.py import_genshin_blue
+```
+
+Options utiles :
+- `--base-url <url>` : cible un miroir différent si besoin (par défaut `https://genshin.jmp.blue`).
+
+Les fiches existantes sont mises à jour pour rester synchronisées avec les données distantes.
+
 ## Fonctionnalités
 - **Suivi des personnages obtenus** : niveaux, ascensions, constellations, arme et set d'artéfacts planifiés.
 - **Recommandations** : armes, sets d'artéfacts et ordre de montée des aptitudes par personnage.
