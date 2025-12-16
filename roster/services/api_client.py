@@ -65,12 +65,20 @@ class ApiCharacterPayload(ApiCharacter):
 
 
 class GenshinApiClient:
-    """Lightweight wrapper around https://genshin.jmp.blue/ ("genshin blue")."""
+    """Lightweight wrapper around https://genshin.dev."""
 
-    DEFAULT_BASE_URL = "https://genshin.jmp.blue"
+    DEFAULT_BASE_URL = "https://genshin.dev"
+    DEFAULT_LANGUAGE = "fr"
 
-    def __init__(self, base_url: str | None = None, session: requests.Session | None = None):
+    def __init__(
+        self,
+        base_url: str | None = None,
+        *,
+        language: str | None = None,
+        session: requests.Session | None = None,
+    ):
         self.base_url = (base_url or self.DEFAULT_BASE_URL).rstrip('/')
+        self.language = (language or self.DEFAULT_LANGUAGE).lower()
         self.session = session or requests.Session()
 
     def _get_json(self, path: str) -> Any:
@@ -79,7 +87,7 @@ class GenshinApiClient:
         return response.json()
 
     def fetch_characters(self) -> list[ApiCharacterPayload]:
-        """Fetch all characters and their related build data from genshin.blue."""
+        """Fetch all characters and their related build data from genshin.dev."""
 
         slugs = self._get_json("/characters")
         if isinstance(slugs, dict):
@@ -139,7 +147,7 @@ class GenshinApiClient:
             return talents
 
         for slug in slugs:
-            detail = self._get_json(f"/characters/{slug}")
+            detail = self._get_json(f"/characters/{slug}?lang={self.language}")
             base_name = detail.get("name") or slug.replace("-", " ").title()
             characters.append(
                 ApiCharacterPayload(
@@ -169,9 +177,9 @@ class GenshinApiClient:
         return characters
 
     def fetch_materials(self) -> list[ApiMaterial]:
-        """Fetch all materials from genshin.blue (detailed)."""
+        """Fetch all materials from genshin.dev (detailed)."""
 
-        payload = self._get_json("/materials/all?lang=en")
+        payload = self._get_json(f"/materials/all?lang={self.language}")
         materials: list[ApiMaterial] = []
 
         if isinstance(payload, dict):
@@ -222,7 +230,7 @@ class GenshinApiClient:
     def fetch_weapons(self) -> list[ApiWeapon]:
         """Fetch weapon catalogue (either detailed list or slug list)."""
 
-        payload = self._get_json("/weapons?lang=en")
+        payload = self._get_json(f"/weapons?lang={self.language}")
         weapons: list[ApiWeapon] = []
 
         def build_weapon(slug: str, item: dict[str, Any]) -> ApiWeapon:
@@ -238,7 +246,7 @@ class GenshinApiClient:
             # either list of slugs or list of dicts
             for entry in payload:
                 if isinstance(entry, str):
-                    detail = self._get_json(f"/weapons/{entry}?lang=en")
+                    detail = self._get_json(f"/weapons/{entry}?lang={self.language}")
                     weapons.append(build_weapon(entry, detail if isinstance(detail, dict) else {}))
                 elif isinstance(entry, dict):
                     slug = str(entry.get("name") or entry.get("id") or entry.get("slug") or "")
@@ -253,7 +261,7 @@ class GenshinApiClient:
     def fetch_artifacts(self) -> list[ApiArtifactSet]:
         """Fetch artifact sets (2-piece and 4-piece bonuses)."""
 
-        payload = self._get_json("/artifacts?lang=en")
+        payload = self._get_json(f"/artifacts?lang={self.language}")
         artifacts: list[ApiArtifactSet] = []
 
         def build_set(slug: str, item: dict[str, Any]) -> ApiArtifactSet:
@@ -278,7 +286,7 @@ class GenshinApiClient:
         if isinstance(payload, list):
             for entry in payload:
                 if isinstance(entry, str):
-                    detail = self._get_json(f"/artifacts/{entry}?lang=en")
+                    detail = self._get_json(f"/artifacts/{entry}?lang={self.language}")
                     artifacts.append(build_set(entry, detail if isinstance(detail, dict) else {}))
                 elif isinstance(entry, dict):
                     slug = str(entry.get("name") or entry.get("id") or entry.get("slug") or "")

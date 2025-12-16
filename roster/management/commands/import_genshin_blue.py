@@ -13,20 +13,26 @@ from roster.services.api_client import GenshinApiClient
 
 
 class Command(BaseCommand):
-    help = "Import characters, materials, weapons and build data from genshin.blue (genshin.jmp.blue)."
+    help = "Import characters, materials, weapons and build data from genshin.dev (en français par défaut)."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--base-url",
             dest="base_url",
             default=None,
-            help="Override the genshin.blue base URL (defaults to https://genshin.jmp.blue).",
+            help="Override the genshin.dev base URL (defaults to https://genshin.dev).",
+        )
+        parser.add_argument(
+            "--language",
+            dest="language",
+            default=None,
+            help="Override the target language (defaults to fr).",
         )
 
     def handle(self, *args, **options):
-        client = GenshinApiClient(base_url=options.get("base_url"))
+        client = GenshinApiClient(base_url=options.get("base_url"), language=options.get("language"))
 
-        self.stdout.write("Fetching characters from genshin.blue…")
+        self.stdout.write("Fetching characters from genshin.dev…")
         characters = client.fetch_characters()
 
         created_chars = 0
@@ -42,9 +48,13 @@ class Command(BaseCommand):
             )
             created_chars += int(created)
 
-        self.stdout.write(self.style.SUCCESS(f"Saved {len(characters)} characters ({created_chars} new)."))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Saved {len(characters)} characters ({created_chars} new). Lang: {client.language}."
+            )
+        )
 
-        self.stdout.write("Fetching materials from genshin.blue…")
+        self.stdout.write("Fetching materials from genshin.dev…")
         materials = client.fetch_materials()
 
         created_materials = 0
@@ -65,7 +75,7 @@ class Command(BaseCommand):
             )
         )
 
-        self.stdout.write("Fetching weapons from genshin.blue…")
+        self.stdout.write("Fetching weapons from genshin.dev…")
         weapons = client.fetch_weapons()
         created_weapons = 0
         weapon_map: dict[str, Weapon] = {}
@@ -83,10 +93,12 @@ class Command(BaseCommand):
             created_weapons += int(created)
 
         self.stdout.write(
-            self.style.SUCCESS(f"Saved {len(weapons)} weapons ({created_weapons} new). Base URL: {client.base_url}")
+            self.style.SUCCESS(
+                f"Saved {len(weapons)} weapons ({created_weapons} new). Base URL: {client.base_url}"
+            )
         )
 
-        self.stdout.write("Fetching artifact sets from genshin.blue…")
+        self.stdout.write("Fetching artifact sets from genshin.dev…")
         artifact_sets = client.fetch_artifacts()
         created_artifacts = 0
         artifact_map: dict[str, ArtifactSet] = {}
