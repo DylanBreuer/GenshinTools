@@ -1,0 +1,155 @@
+# Generated manually for offline environment.
+from django.db import migrations, models
+import django.db.models.deletion
+
+
+class Migration(migrations.Migration):
+    initial = True
+
+    dependencies = []
+
+    operations = [
+        migrations.CreateModel(
+            name='ArtifactSet',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('name', models.CharField(max_length=120, unique=True)),
+                ('two_piece_bonus', models.TextField(blank=True)),
+                ('four_piece_bonus', models.TextField(blank=True)),
+            ],
+        ),
+        migrations.CreateModel(
+            name='Character',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('name', models.CharField(max_length=100, unique=True)),
+                ('element', models.CharField(choices=[('anemo', 'Anemo'), ('geo', 'Geo'), ('electro', 'Electro'), ('dendro', 'Dendro'), ('pyro', 'Pyro'), ('hydro', 'Hydro'), ('cryo', 'Cryo')], max_length=20)),
+                ('rarity', models.PositiveSmallIntegerField(default=5)),
+                ('role', models.CharField(blank=True, max_length=80)),
+                ('weapon_type', models.CharField(blank=True, max_length=50)),
+                ('description', models.TextField(blank=True)),
+            ],
+        ),
+        migrations.CreateModel(
+            name='Material',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('name', models.CharField(max_length=120, unique=True)),
+                ('material_type', models.CharField(choices=[('character', 'Character Ascension'), ('talent', 'Talent'), ('weapon', 'Weapon'), ('artifact', 'Artifact'), ('general', 'General')], max_length=30)),
+                ('rarity', models.PositiveSmallIntegerField(default=1)),
+                ('source', models.CharField(blank=True, max_length=200)),
+            ],
+            options={'ordering': ['-rarity', 'name']},
+        ),
+        migrations.CreateModel(
+            name='Weapon',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('name', models.CharField(max_length=120, unique=True)),
+                ('weapon_type', models.CharField(choices=[('sword', 'Sword'), ('claymore', 'Claymore'), ('polearm', 'Polearm'), ('bow', 'Bow'), ('catalyst', 'Catalyst')], max_length=30)),
+                ('rarity', models.PositiveSmallIntegerField(default=4)),
+                ('source', models.CharField(blank=True, max_length=150)),
+                ('description', models.TextField(blank=True)),
+            ],
+        ),
+        migrations.CreateModel(
+            name='OwnedMaterialStock',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('quantity_owned', models.PositiveIntegerField(default=0)),
+                ('material', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='roster.material')),
+            ],
+            options={'verbose_name': 'Material stock', 'verbose_name_plural': 'Material stock'},
+        ),
+        migrations.CreateModel(
+            name='OwnedCharacter',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('level', models.PositiveIntegerField(default=1)),
+                ('ascension_level', models.PositiveSmallIntegerField(default=0)),
+                ('constellations_unlocked', models.PositiveSmallIntegerField(default=0)),
+                ('artifact_plan_notes', models.TextField(blank=True)),
+                ('priority_notes', models.TextField(blank=True)),
+                ('character', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='roster.character')),
+                (
+                    'chosen_artifact_set',
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name='owned_choices',
+                        to='roster.artifactset',
+                    ),
+                ),
+                (
+                    'chosen_weapon',
+                    models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='roster.weapon'),
+                ),
+            ],
+            options={'ordering': ['character__name'], 'unique_together': {('character',)}},
+        ),
+        migrations.CreateModel(
+            name='CharacterWeaponRecommendation',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('ranking', models.PositiveSmallIntegerField(default=1)),
+                ('note', models.TextField(blank=True)),
+                ('character', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='roster.character')),
+                ('weapon', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='roster.weapon')),
+            ],
+            options={'ordering': ['ranking'], 'unique_together': {('character', 'weapon')}},
+        ),
+        migrations.CreateModel(
+            name='CharacterTalent',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('name', models.CharField(max_length=100)),
+                ('description', models.TextField(blank=True)),
+                ('recommended_priority', models.PositiveSmallIntegerField(default=1)),
+                ('character', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='roster.character')),
+            ],
+            options={'ordering': ['recommended_priority'], 'unique_together': {('character', 'name')}},
+        ),
+        migrations.CreateModel(
+            name='CharacterMaterialRequirement',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('quantity', models.PositiveIntegerField(default=0)),
+                (
+                    'category',
+                    models.CharField(
+                        choices=[('ascension', 'Ascension'), ('talent', 'Talent'), ('passive', 'Passive')],
+                        default='ascension',
+                        max_length=30,
+                    ),
+                ),
+                ('notes', models.TextField(blank=True)),
+                ('character', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='roster.character')),
+                ('material', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='roster.material')),
+            ],
+            options={'unique_together': {('character', 'material', 'category')}},
+        ),
+        migrations.CreateModel(
+            name='CharacterArtifactRecommendation',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('ranking', models.PositiveSmallIntegerField(default=1)),
+                ('note', models.TextField(blank=True)),
+                ('artifact_set', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='roster.artifactset')),
+                ('character', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='roster.character')),
+            ],
+            options={'ordering': ['ranking'], 'unique_together': {('character', 'artifact_set')}},
+        ),
+        migrations.CreateModel(
+            name='TalentProgress',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('current_level', models.PositiveSmallIntegerField(default=1)),
+                ('target_level', models.PositiveSmallIntegerField(default=10)),
+                ('skip', models.BooleanField(default=False)),
+                ('owned_character', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='roster.ownedcharacter')),
+                ('talent', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='roster.charactertalent')),
+            ],
+            options={'unique_together': {('owned_character', 'talent')}},
+        ),
+    ]

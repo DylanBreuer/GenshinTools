@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load dict_tags %}
+{% block content %}
+  <h2>{{ owned_character.character.name }}</h2>
+  <p>Élément: {{ character.get_element_display }} | Arme: {{ character.weapon_type }} | Rareté: {{ character.rarity }}★</p>
+  <p>Niveau actuel: {{ owned_character.level }} | Ascension: {{ owned_character.ascension_level }} | Constellations: {{ owned_character.constellations_unlocked }}</p>
+  <p><a href="{% url 'roster:owned-character-edit' owned_character.pk %}">Mettre à jour</a></p>
+
+  <section>
+    <h3>Recommandations</h3>
+    <h4>Armes</h4>
+    <ul>
+      {% for rec in character.characterweaponrecommendation_set.all %}
+        <li>#{{ rec.ranking }} - {{ rec.weapon.name }} {{ rec.note }}</li>
+      {% empty %}<li>Pas encore de recommandations.</li>{% endfor %}
+    </ul>
+    <h4>Artéfacts</h4>
+    <ul>
+      {% for rec in character.characterartifactrecommendation_set.all %}
+        <li>#{{ rec.ranking }} - {{ rec.artifact_set.name }} {{ rec.note }}</li>
+      {% empty %}<li>Pas encore de recommandations.</li>{% endfor %}
+    </ul>
+    <h4>Priorités d'aptitudes</h4>
+    <ol>
+      {% for talent in character.charactertalent_set.all %}
+        <li>{{ talent.name }} {% if talent.description %}<small>{{ talent.description }}</small>{% endif %}</li>
+      {% empty %}<li>Pas encore de priorités définies.</li>{% endfor %}
+    </ol>
+  </section>
+
+  <section>
+    <h3>Matériaux requis</h3>
+    <table>
+      <thead>
+        <tr><th>Matériau</th><th>Requis</th><th>En stock</th><th>Manque</th></tr>
+      </thead>
+      <tbody>
+        {% for material, qty in material_requirements.items %}
+          <tr>
+            <td>{{ material.name }}</td>
+            <td>{{ qty }}</td>
+            <td>{{ inventory|dictget:material|default:0 }}</td>
+            <td>{{ material_missing|dictget:material }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">Aucune donnée de matériaux enregistrée.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h3>Suivi des talents</h3>
+    <form method="post" action="{% url 'roster:talent-progress-add' owned_character.pk %}">
+      {% csrf_token %}
+      {{ talent_form.as_p }}
+      <button type="submit">Enregistrer</button>
+    </form>
+    <ul>
+      {% for progress in talent_progress %}
+        <li>{{ progress.talent.name }} : {{ progress.current_level }} → {{ progress.target_level }} {% if progress.skip %}(ne pas monter){% endif %}</li>
+      {% empty %}<li>Ajoute tes cibles d'aptitudes.</li>{% endfor %}
+    </ul>
+  </section>
+{% endblock %}

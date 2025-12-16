@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Genshin Tools</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+  </head>
+  <body>
+    <header>
+      <h1>Genshin Tools</h1>
+      <nav>
+        <a href="/">Mes personnages</a>
+        <a href="/roster/materials/summary/">Synthèse matériaux</a>
+        <a href="/roster/materials/">Catalogue matériaux</a>
+        <a href="/roster/recommendations/">Recommandations builds</a>
+      </nav>
+    </header>
+    <main>
+      {% if messages %}
+        <ul>
+          {% for message in messages %}
+            <li>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>
