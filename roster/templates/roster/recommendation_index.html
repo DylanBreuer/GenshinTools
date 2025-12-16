@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Recommandations builds</h2>
+  {% for character in characters %}
+    <section>
+      <h3>{{ character.name }} ({{ character.get_element_display }})</h3>
+      <p>Rôle: {{ character.role }} | Arme: {{ character.weapon_type }}</p>
+      <p>{{ character.description }}</p>
+      <strong>Armes:</strong>
+      <ul>
+        {% for rec in character.characterweaponrecommendation_set.all %}
+          <li>#{{ rec.ranking }} - {{ rec.weapon.name }} {{ rec.note }}</li>
+        {% empty %}<li>À compléter.</li>{% endfor %}
+      </ul>
+      <strong>Artéfacts:</strong>
+      <ul>
+        {% for rec in character.characterartifactrecommendation_set.all %}
+          <li>#{{ rec.ranking }} - {{ rec.artifact_set.name }} {{ rec.note }}</li>
+        {% empty %}<li>À compléter.</li>{% endfor %}
+      </ul>
+      <strong>Priorité d'aptitudes:</strong>
+      <ol>
+        {% for talent in character.charactertalent_set.all %}
+          <li>{{ talent.name }}</li>
+        {% empty %}<li>Ajoute des talents pour définir l'ordre de montée.</li>{% endfor %}
+      </ol>
+    </section>
+  {% empty %}
+    <p>Ajoute des personnages de référence via les commandes d'import.</p>
+  {% endfor %}
+{% endblock %}

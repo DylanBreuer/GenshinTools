@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% load dict_tags %}
+{% block content %}
+  <h2>Synthèse des matériaux</h2>
+  <table>
+    <thead>
+      <tr><th>Matériau</th><th>Total requis</th><th>En stock</th><th>Manque</th></tr>
+    </thead>
+    <tbody>
+      {% for material, qty in requirements.items %}
+        <tr>
+          <td>{{ material.name }}</td>
+          <td>{{ qty }}</td>
+          <td>{{ inventory|dictget:material }}</td>
+          <td>{{ missing|dictget:material }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">Aucun besoin enregistré.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block content %}
+  <h2>Mes personnages</h2>
+  <p><a href="{% url 'roster:owned-character-add' %}">Ajouter un personnage obtenu</a></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Nom</th>
+        <th>Niveau</th>
+        <th>Constellations</th>
+        <th>Arme choisie</th>
+        <th>Artéfact prévu</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for owned in owned_characters %}
+        <tr>
+          <td><a href="{% url 'roster:owned-character-detail' owned.pk %}">{{ owned.character.name }}</a></td>
+          <td>Lv. {{ owned.level }} (Asc. {{ owned.ascension_level }})</td>
+          <td>{{ owned.constellations_unlocked }}</td>
+          <td>{{ owned.chosen_weapon|default:'-' }}</td>
+          <td>{{ owned.chosen_artifact_set|default:'-' }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">Ajoute tes personnages pour commencer le suivi.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
