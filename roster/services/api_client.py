@@ -67,39 +67,46 @@ class GenshinApiClient:
         return characters
 
     def fetch_materials(self) -> list[ApiMaterial]:
-        """Fetch materials across all categories exposed by genshin.blue."""
+        """Fetch all materials from genshin.blue (detailed)."""
 
-        categories = self._get_json("/materials")
+        payload = self._get_json("/materials/all?lang=en")
         materials: list[ApiMaterial] = []
 
-        def category_key_to_type(category: str) -> str:
-            mapping = {
-                "character-ascension": "character",
-                "talent": "talent",
-                "weapon": "weapon",
-                "common-ascension": "general",
-                "local-specialties": "character",
-                "weekly-boss": "talent",
-                "boss": "character",
-            }
-            return mapping.get(category, "general")
+        def normalize_source(value: Any) -> str:
+            if isinstance(value, list):
+                return ", ".join(str(v) for v in value if v)
+            if isinstance(value, str):
+                return value
+            return ""
 
-        for category in categories:
-            items = self._get_json(f"/materials/{category}")
-            if isinstance(items, dict):
-                # Newer versions return {slug: {detail}}
-                iterable = items.items()
-            else:
-                iterable = [(slug, self._get_json(f"/materials/{category}/{slug}")) for slug in items]
+        def normalize_type(item: dict[str, Any]) -> str:
+            # Selon les données, tu peux avoir "type"/"category"/"material_type"
+            raw = (item.get("type") or item.get("category") or item.get("material_type") or "").lower()
+            # Garde ta logique si tu veux regrouper en 3 grands types
+            if "weapon" in raw:
+                return "weapon"
+            if "talent" in raw:
+                return "talent"
+            if "character" in raw or "ascension" in raw or "boss" in raw or "local" in raw:
+                return "character"
+            return "general"
 
-            for slug, detail in iterable:
-                materials.append(
-                    ApiMaterial(
-                        name=detail.get("name") or slug.replace("-", " ").title(),
-                        type=category_key_to_type(category),
-                        rarity=int(detail.get("rarity", 1)),
-                        source=", ".join(detail.get("source", []) if isinstance(detail.get("source"), list) else detail.get("source", "")),
-                    )
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+
+            name = item.get("name") or ""
+            if not name:
+                continue
+
+            materials.append(
+                ApiMaterial(
+                    name=name,
+                    type=normalize_type(item),
+                    rarity=int(item.get("rarity", 1) or 1),
+                    source=normalize_source(item.get("source")),
                 )
+            )
 
         return materials
+
