@@ -72,6 +72,13 @@ class GenshinApiClient:
         payload = self._get_json("/materials/all?lang=en")
         materials: list[ApiMaterial] = []
 
+        if isinstance(payload, dict):
+            items = payload.values()
+        elif isinstance(payload, list):
+            items = payload
+        else:
+            items = []
+
         def normalize_source(value: Any) -> str:
             if isinstance(value, list):
                 return ", ".join(str(v) for v in value if v)
@@ -91,7 +98,7 @@ class GenshinApiClient:
                 return "character"
             return "general"
 
-        for item in payload:
+        for item in items:
             if not isinstance(item, dict):
                 continue
 
