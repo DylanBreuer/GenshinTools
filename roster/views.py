@@ -6,6 +6,7 @@ from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views import generic
+from django.views.generic import TemplateView
 
 from .forms import OwnedCharacterForm, TalentProgressForm
 from .models import (
@@ -95,32 +96,44 @@ class TalentProgressCreateView(generic.View):
         return redirect('roster:owned-character-detail', pk=owned_character.pk)
 
 
-class MaterialSummaryView(generic.TemplateView):
-    template_name = 'roster/material_summary.html'
+class MaterialSummaryView(TemplateView):
+    template_name = "roster/material_summary.html"
 
-    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+    def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        owned_characters = OwnedCharacter.objects.all()
-        requirements = aggregate_required_materials(owned_characters)
-        inventory = Counter({stock.material: stock.quantity_owned for stock in OwnedMaterialStock.objects.all()})
-        missing = Counter({material: max(0, qty - inventory.get(material, 0)) for material, qty in requirements.items()})
-        context.update(
-            {
-                'requirements': requirements,
-                'inventory': inventory,
-                'missing': missing,
-                'materials': Material.objects.all(),
-            }
-        )
-        return context
 
+        owned_characters = OwnedCharacter.objects.select_related("character")
+        requirements = aggregate_required_materials(owned_characters)
+
+        inventory = {
+            stock.material: stock.quantity_owned
+            for stock in OwnedMaterialStock.objects.select_related("material")
+        }
+
+        missing = {}
+        for material, required_qty in requirements.items():
+            in_stock = inventory.get(material, 0)
+            missing[material] = max(required_qty - in_stock, 0)
+
+        requirements_items = sorted(
+            requirements.items(),
+            key=lambda kv: (-kv[0].material_type, kv[0].name.lower())
+        )
+
+        context.update({
+            "requirements_items": requirements_items,  # list[(Material, int)]
+            "inventory": inventory,
+            "missing": missing,
+        })
+
+        return context
 
 class MaterialIndexView(generic.ListView):
     model = Material
     template_name = 'roster/material_index.html'
     context_object_name = 'materials'
-    paginate_by = 100
-    ordering = ['-rarity', 'name']
+    paginate_by = 500
+    ordering = ['-material_type', 'name']
 
 
 class RecommendationIndexView(generic.ListView):

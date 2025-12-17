@@ -169,53 +169,183 @@ class GenshinApiClient:
         return characters
 
     def fetch_materials(self) -> list[ApiMaterial]:
-        """Fetch all materials from genshin.blue (detailed)."""
+        categories = self._get_json("/materials")
+        if isinstance(categories, dict):
+            categories = list(categories.keys())
+        if not isinstance(categories, list):
+            categories = []
 
-        payload = self._get_json("/materials/all?lang=en")
         materials: list[ApiMaterial] = []
 
-        if isinstance(payload, dict):
-            items = payload.values()
-        elif isinstance(payload, list):
-            items = payload
-        else:
-            items = []
+        def extract_sources(item: dict[str, Any]) -> str:
+            """
+            Normalize all possible 'source' fields across categories into one string,
+            including inherited sources, local-specialties regions, and talent-boss bosses.
+            """
 
-        def normalize_source(value: Any) -> str:
-            if isinstance(value, list):
-                return ", ".join(str(v) for v in value if v)
-            if isinstance(value, str):
-                return value
-            return ""
+            path = item.get("_path", "")
 
-        def normalize_type(item: dict[str, Any]) -> str:
-            # Selon les données, tu peux avoir "type"/"category"/"material_type"
-            raw = (item.get("type") or item.get("category") or item.get("material_type") or "").lower()
-            # Garde ta logique si tu veux regrouper en 3 grands types
-            if "weapon" in raw:
-                return "weapon"
-            if "talent" in raw:
-                return "talent"
-            if "character" in raw or "ascension" in raw or "boss" in raw or "local" in raw:
-                return "character"
-            return "general"
+            # --------------------------------------------------
+            # 🎯 talent-boss → source = boss hebdomadaire (mapping)
+            # --------------------------------------------------
+            TALENT_BOSS_SOURCE_BY_KEYWORD = {
+                "boreas": "Andrius, Dominator of Wolves",
+                "dvalin": "Stormterror",
+                "monoceros": "Childe (Tartaglia)",
+                "foul-legacy": "Childe (Tartaglia)",
+                "azhdaha": "Azhdaha",
+                "raiden": "Magatsu Mitake Narukami no Mikoto",
+                "puppet": "Everlasting Lord of Arcane Wisdom",
+                "mushin": "Everlasting Lord of Arcane Wisdom",
+                "calamitous-god": "Shouki no Kami",
+                "aeons": "Shouki no Kami",
+                "lightless": "All-Devouring Narwhal",
+                "fading-candle": "The Knave",
+                "denial-and-judgment": "The Knave",
+            }
 
-        for item in items:
-            if not isinstance(item, dict):
-                continue
+            if path:
+                for key, boss in TALENT_BOSS_SOURCE_BY_KEYWORD.items():
+                    if key in path:
+                        return boss
 
-            name = item.get("name") or ""
-            if not name:
-                continue
+            # --------------------------------------------------
+            # 🌍 local-specialties → source = région
+            # --------------------------------------------------
+            if path:
+                region = path.split("/")[0]
+                if region in {
+                    "mondstadt",
+                    "liyue",
+                    "inazuma",
+                    "sumeru",
+                    "fontaine",
+                    "natlan",
+                }:
+                    return region.capitalize()
 
-            materials.append(
-                ApiMaterial(
-                    name=name,
-                    type=normalize_type(item),
-                    rarity=int(item.get("rarity", 1) or 1),
-                    source=normalize_source(item.get("source")),
+            # --------------------------------------------------
+            # 🔁 sources directes / héritées
+            # --------------------------------------------------
+            candidates = [
+                item.get("source"),
+                item.get("sources"),
+                item.get("_inherited_sources"),
+                item.get("obtain"),
+                item.get("obtainedFrom"),
+                item.get("domain"),
+                item.get("dropDomain"),
+                item.get("location"),
+                item.get("region"),
+            ]
+
+            def norm(v: Any) -> list[str]:
+                if isinstance(v, str) and v.strip():
+                    return [v.strip()]
+                if isinstance(v, list):
+                    return [x.strip() for x in v if isinstance(x, str) and x.strip()]
+                return []
+
+            parts: list[str] = []
+            for c in candidates:
+                parts.extend(norm(c))
+
+            # dédoublonnage en conservant l'ordre
+            seen = set()
+            unique: list[str] = []
+            for p in parts:
+                if p not in seen:
+                    seen.add(p)
+                    unique.append(p)
+
+            return ", ".join(unique)
+
+
+        def extract_items_from_category_payload(payload: Any) -> list[dict[str, Any]]:
+            items: list[dict[str, Any]] = []
+
+            def looks_like_item(d: dict[str, Any]) -> bool:
+                if not isinstance(d.get("name"), str) or not d["name"].strip():
+                    return False
+                return any(k in d for k in ("id", "rarity", "experience", "characters"))
+
+            def get_sources_from_node(node: Any) -> list[str]:
+                if not isinstance(node, dict):
+                    return []
+                raw = node.get("sources") or node.get("source")
+                if isinstance(raw, str) and raw.strip():
+                    return [raw.strip()]
+                if isinstance(raw, list):
+                    return [s.strip() for s in raw if isinstance(s, str) and s.strip()]
+                return []
+
+            def walk(node: Any, path: tuple[str, ...] = (), inherited_sources: list[str] | None = None) -> None:
+                inherited_sources = inherited_sources or []
+
+                if isinstance(node, dict):
+                    # hériter des sources si ce niveau en définit
+                    local_sources = inherited_sources + get_sources_from_node(node)
+
+                    # clé parasite
+                    if "id" in node and isinstance(node["id"], str) and len(node) <= 2 and "items" in node:
+                        # cas typique: {"items":[...], "id":"weapon-experience"}
+                        pass
+
+                    if looks_like_item(node):
+                        # on copie pour ne pas modifier l'objet original (évite des effets de bord)
+                        clean = dict(node)
+                        clean["_path"] = "/".join(path)
+                        if local_sources:
+                            clean["_inherited_sources"] = local_sources
+                        items.append(clean)
+
+                    for k, v in node.items():
+                        # ignore uniquement la clé parasite "id" des wrappers simples
+                        if k == "id" and isinstance(v, str) and len(node) <= 2:
+                            continue
+                        walk(v, path + (str(k),), local_sources)
+
+                elif isinstance(node, list):
+                    for idx, v in enumerate(node):
+                        walk(v, path + (str(idx),), inherited_sources)
+
+            walk(payload)
+            return items
+
+
+        for category in categories:
+            payload = self._get_json(f"/materials/{category}")
+
+            if isinstance(payload, list):
+                items: list[dict[str, Any]] = []
+                for slug in [s for s in payload if isinstance(s, str)]:
+                    detail = self._get_json(f"/materials/{category}/{slug}")
+                    if isinstance(detail, dict) and detail.get("name"):
+                        items.append(detail)
+            else:
+                items = extract_items_from_category_payload(payload)
+
+            print(f"{category} : {len(items)}")
+
+            for item in items:
+                name = item.get("name")
+                if not isinstance(name, str) or not name.strip():
+                    continue
+
+                try:
+                    rarity = int(item.get("rarity", 1) or 1)
+                except (TypeError, ValueError):
+                    rarity = 1
+
+                materials.append(
+                    ApiMaterial(
+                        name=name.strip(),
+                        type=category,
+                        rarity=rarity,
+                        # ✅ ici la modif
+                        source=extract_sources(item),
+                    )
                 )
-            )
 
         return materials
 

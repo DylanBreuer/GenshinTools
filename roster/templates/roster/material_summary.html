@@ -7,7 +7,7 @@
       <tr><th>Matériau</th><th>Total requis</th><th>En stock</th><th>Manque</th></tr>
     </thead>
     <tbody>
-      {% for material, qty in requirements.items %}
+      {% for material, qty in requirements_items %}
         <tr>
           <td>{{ material.name }}</td>
           <td>{{ qty }}</td>
